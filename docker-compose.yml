@@ -1,0 +1,25 @@
+services:
+  coach:
+    build: .
+    image: reading-coach:3.1.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      READING_COACH_HOME: /data
+      READING_COACH_BIND: 0.0.0.0
+      # 容器内必须监听所有网卡，但宿主机端口只映射 127.0.0.1。
+      # 这个开关只对"信任宿主机回环边界"有效；公网部署请删掉它并改设 READING_COACH_TOKEN。
+      READING_COACH_TRUST_PROXY: "1"
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - coach-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  coach-data:

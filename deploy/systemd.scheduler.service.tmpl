@@ -1,0 +1,11 @@
+[Unit]
+Description=reading-coach daily review push
+
+[Service]
+Type=oneshot
+WorkingDirectory=${ROOT}
+Environment=PYTHONPATH=${ROOT}
+Environment=READING_COACH_HOME=${DATA}
+Environment=READING_COACH_ENV_FILE=${ENV_FILE}
+Environment=READING_COACH_PORT=${PORT}
+ExecStart=${PYTHON} -m reading_coach.scheduler

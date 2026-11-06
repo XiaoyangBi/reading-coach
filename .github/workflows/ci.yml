@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: 安装
+        run: python -m pip install --upgrade pip && pip install -e ".[pdf]"
+      - name: 离线检查（无 key、无网络）
+        run: reading-coach-test
+      - name: GEB 契约检查
+        run: python scripts/check_contracts.py
+      - name: 版本一致性
+        run: python -c "import pathlib,reading_coach; t=pathlib.Path('pyproject.toml').read_text(); assert 'version = \"'+reading_coach.__version__+'\"' in t"
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 构建 wheel 与 sdist
+        run: python -m pip install --upgrade build && python -m build
+      - name: 从 wheel 安装并验证入口与静态页
+        run: |
+          pip install dist/*.whl
+          cd /tmp
+          python -c "import reading_coach,pathlib; p=pathlib.Path(reading_coach.__file__).parent/'static'/'index.html'; assert p.is_file(), p"
+          reading-coach-test
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 密钥与个人数据不得入库
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)data/|(^|/)books/'; then exit 1; fi
+          if grep -rInE '(sk|wrk)-[A-Za-z0-9]{20,}' --exclude-dir=.git .; then exit 1; fi
+          echo "hygiene: ok"

@@ -1,0 +1,17 @@
+[Unit]
+Description=reading-coach local workbench
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=${ROOT}
+Environment=PYTHONPATH=${ROOT}
+Environment=READING_COACH_HOME=${DATA}
+Environment=READING_COACH_ENV_FILE=${ENV_FILE}
+Environment=READING_COACH_PORT=${PORT}
+ExecStart=${PYTHON} -m reading_coach.web --no-open
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reading-coach"
+version = "3.1.0"
+description = "本地优先的阅读陪练 Agent：只提问、只记录、到点提醒，书由你选，理解由你完成"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "XiaoyangBi" }]
+keywords = ["reading", "spaced-repetition", "agent", "feynman", "local-first"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+]
+dependencies = [
+    "anthropic>=0.40,<2",
+    "openai>=1.0,<3",
+    "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4.0,<7"]
+
+[project.scripts]
+reading-coach = "reading_coach.cli:entry"
+reading-coach-web = "reading_coach.web:entry"
+reading-coach-scheduler = "reading_coach.scheduler:entry"
+reading-coach-test = "reading_coach.test:entry"
+
+[project.urls]
+Homepage = "https://github.com/XiaoyangBi/reading-coach"
+Repository = "https://github.com/XiaoyangBi/reading-coach"
+Issues = "https://github.com/XiaoyangBi/reading-coach/issues"
+
+[tool.setuptools.packages.find]
+include = ["reading_coach*"]
+
+[tool.setuptools.package-data]
+reading_coach = ["static/*.html"]

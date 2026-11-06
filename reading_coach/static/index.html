@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阅读陪练</title>
+<meta name="theme-color" content="#FAFAF8">
+<link rel="icon" href="data:,">
+<style>
+:root{--paper:#fafaf8;--ink:#1d1d1f;--muted:#8a8a8e;--faint:#b9b9bd;--line:#1d1d1f14;--edge:#1d1d1f38;--brand:#16b0ea;
+--pass:#3b6d11;--fail:#a32d2d;--soft:#f1efe8;
+--serif:"Songti SC","Noto Serif SC","Source Han Serif SC",serif;
+--sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;--gutter:clamp(24px,6vw,112px);--ease:cubic-bezier(.22,1,.36,1)}
+*,:before,:after{box-sizing:border-box}
+html{background:var(--paper);color:var(--ink);font:16px/1.8 var(--sans);-webkit-font-smoothing:antialiased}
+body{margin:0}
+a{color:inherit;text-decoration:none}
+p,h1,h2,h3,ul,ol{margin:0;padding:0}
+h1,h2,h3{font-weight:300}
+::selection{background:#16b0ea2e}
+:focus-visible{outline:1.5px solid var(--brand);outline-offset:4px;border-radius:4px}
+.top{position:sticky;top:0;z-index:5;background:#fafaf8e6;backdrop-filter:saturate(1.2);display:flex;justify-content:space-between;align-items:center;padding:22px var(--gutter);font-size:14px}
+.top nav{display:flex;gap:clamp(18px,2.4vw,36px);font-size:13px}
+.top nav a{color:var(--muted);transition:color .3s}.top nav a:hover{color:var(--ink)}
+.brand{display:inline-flex;align-items:center;gap:10px;letter-spacing:.02em}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ink)}
+main{padding:0 var(--gutter) 96px;max-width:1180px}
+section{padding:56px 0 8px;border-top:1px solid var(--line)}
+section:first-of-type{border-top:0;padding-top:48px}
+.eyebrow{color:var(--muted);font:12px/1.6 var(--mono);letter-spacing:.14em;margin-bottom:22px}
+.display{font-family:var(--serif);font-size:clamp(32px,4.6vw,64px);line-height:1.2;letter-spacing:-.01em;max-width:18em}
+.lead{color:var(--muted);margin-top:18px;font-size:15px;line-height:2;max-width:42em}
+.meta{color:var(--muted);font:12px/1.6 var(--mono);letter-spacing:.06em;margin-top:14px}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:24px;margin-top:34px}
+.cta{background:var(--ink);color:var(--paper);border:0;border-radius:999px;padding:14px 26px;font:14.5px var(--sans);letter-spacing:.02em;cursor:pointer;transition:transform .5s var(--ease),opacity .3s}
+.cta:hover{transform:translateY(-2px)}.cta:disabled{opacity:.35;cursor:default;transform:none}
+.ghost{background:none;border:0;color:var(--muted);font:14px var(--sans);cursor:pointer;padding:6px 0;transition:color .3s}
+.ghost:hover{color:var(--ink)}.ghost:disabled{color:var(--faint);cursor:default}
+.pill{background:none;border:0;box-shadow:inset 0 0 0 1px var(--edge);border-radius:999px;padding:8px 18px;font:13.5px var(--sans);color:var(--ink);cursor:pointer;transition:box-shadow .3s}
+.pill:hover{box-shadow:inset 0 0 0 1px var(--ink)}.pill:disabled{color:var(--faint);box-shadow:inset 0 0 0 1px var(--line);cursor:default}
+.notice{margin-top:22px;font-size:13.5px;color:var(--muted)}
+.notice b{font-weight:400;color:var(--ink)}
+.feed{margin-top:8px;display:grid;gap:14px;max-width:760px}
+.narr{color:var(--muted);font-size:13px;line-height:1.7}
+.mode{font:12px/1.6 var(--mono);letter-spacing:.08em;color:var(--ink)}
+.plan{font-size:14px;color:var(--muted);line-height:1.9}
+.plan li{list-style:none}
+.q{margin-top:6px}.q .where{font:12px/1.6 var(--mono);letter-spacing:.06em;color:var(--muted)}
+.q .text{font-family:var(--serif);font-size:clamp(20px,2vw,26px);line-height:1.6;margin-top:8px}
+.you{font-size:15px;line-height:1.9;padding-left:14px;border-left:1px solid var(--edge)}
+.verdict{background:var(--soft);border-radius:8px;padding:12px 16px;font-size:14px;line-height:1.9}
+.verdict .lv{margin-right:6px}.lv-pass{color:var(--pass)}.lv-partial{color:var(--muted)}.lv-fail{color:var(--fail)}
+.verdict .led{color:var(--muted);font-size:13px}
+.err{color:var(--fail);font-size:14px}
+.report{border-top:1px solid var(--line);padding-top:16px;font-size:14px;line-height:2}
+.report p:first-child{color:var(--ink)}.report p{color:var(--muted)}
+.composer{max-width:760px;margin-top:22px}
+textarea{width:100%;min-height:96px;resize:vertical;border:0;box-shadow:inset 0 0 0 1px var(--edge);border-radius:8px;background:#fff;padding:12px 14px;font:15px/1.8 var(--sans);color:var(--ink)}
+textarea:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--brand)}
+textarea:disabled{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
+.words{display:flex;gap:22px}
+.status{font:12px/1.6 var(--mono);letter-spacing:.06em;color:var(--muted);margin-top:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:40px 56px}
+.book h3{font-family:var(--serif);font-size:22px;line-height:1.4;cursor:pointer;transition:color .3s var(--ease)}
+.book h3:hover{color:var(--muted)}
+.live-banner{margin-top:22px;padding:14px 18px;border-radius:8px;background:var(--soft);font-size:13.5px;line-height:1.9}
+.live-banner .ghost{margin-left:18px}
+.book .counts{color:var(--muted);font-size:13px;margin-top:6px}
+.book .row{display:flex;gap:22px;margin-top:14px;align-items:center}
+.clist{margin-top:14px;font-size:13.5px;line-height:1.8}
+.clist li{list-style:none;display:grid;grid-template-columns:1fr auto;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+.clist small{color:var(--muted);font-size:12px}
+.due{color:var(--fail)}
+.byname{display:flex;gap:14px;margin-top:40px;align-items:center;flex-wrap:wrap}
+input[type=text]{border:0;box-shadow:inset 0 0 0 1px var(--edge);border-radius:999px;background:#fff;padding:10px 18px;font:14px var(--sans);min-width:260px}
+input[type=text]:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--brand)}
+.log li{list-style:none;padding:14px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:110px 1fr;gap:16px}
+.log time{font:12px/1.9 var(--mono);color:var(--muted)}
+.log .what{font-size:14px;line-height:1.8}.log .what small{color:var(--muted);font-size:12.5px}
+.log .fb{display:flex;gap:18px;margin-top:4px;flex-wrap:wrap}
+.fb .ghost{font-size:12.5px}
+.tag{font-size:12.5px;color:var(--ink)}
+.hl{box-shadow:inset 2px 0 0 var(--brand);padding-left:12px!important}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px}
+.sub{font:12px/1.6 var(--mono);letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+.empty{color:var(--faint);font-size:13.5px;padding:14px 0;border-top:1px solid var(--line)}
+.foot{padding:32px var(--gutter) 40px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#today"><span class="dot" aria-hidden="true"></span><span>阅读陪练</span></a>
+  <nav><a href="#today">今日</a><a href="#coach">陪练</a><a href="#shelf">书架</a><a href="#log">台账</a></nav>
+</header>
+
+<main>
+<section id="today" aria-labelledby="today-h">
+  <p class="eyebrow">01 / 今日</p>
+  <h1 class="display" id="today-h">正在读账本…</h1>
+  <p class="lead" id="today-meta"></p>
+  <p class="lead" id="today-why" style="margin-top:4px"></p>
+  <div class="actions">
+    <button class="cta" id="start" disabled>开始一题 · 约 2 分钟</button>
+    <a class="ghost" href="#shelf">换一本</a>
+    <button class="ghost" id="later">今天先不</button>
+  </div>
+  <p class="notice" id="today-note" hidden></p>
+  <div class="live-banner" id="live-banner" hidden></div>
+</section>
+
+<section id="coach" aria-labelledby="coach-h">
+  <p class="eyebrow" id="coach-h">02 / 陪练</p>
+  <div class="live-banner" id="coach-banner" hidden></div>
+  <div id="idle" class="narr">还没开始。从今日卡片或书架开一局；每一步教练看了什么、打算做什么、改了什么，都会写在这里。</div>
+  <div class="feed" id="feed" aria-live="polite"></div>
+  <div class="composer" id="composer" hidden>
+    <label for="answer" class="sub">你的回答</label>
+    <textarea id="answer" placeholder="用你自己的话回答。⌘ + 回车提交" disabled></textarea>
+    <div class="bar">
+      <div class="words" id="words">
+        <button class="ghost" data-word="跳过">跳过</button>
+        <button class="ghost" data-word="深挖">深挖</button>
+        <button class="ghost" data-word="撤销">撤销上一题</button>
+        <button class="ghost" data-word="结束">结束</button>
+      </div>
+      <button class="pill" id="send" disabled>提交</button>
+    </div>
+    <div class="bar" id="choice" hidden></div>
+    <p class="status" id="status"></p>
+  </div>
+</section>
+
+<section id="shelf" aria-labelledby="shelf-h">
+  <p class="eyebrow" id="shelf-h">03 / 书架与账本</p>
+  <div class="grid" id="books"></div>
+  <div class="byname">
+    <input type="text" id="title" placeholder="或者输入书名，按你在微信读书上的划线来练">
+    <button class="pill" id="by-title">从书架开始</button>
+  </div>
+</section>
+
+<section id="log" aria-labelledby="log-h">
+  <p class="eyebrow" id="log-h">04 / 推送台账</p>
+  <p class="lead" id="decision" style="margin:-6px 0 26px"></p>
+  <div class="cols">
+    <div><p class="sub">复习推送</p><ol class="log" id="pushes"></ol></div>
+    <div><p class="sub">影子决策 · 主动运行时（只读）</p><ol class="log" id="runtime"></ol></div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">只在本机运行。模型和微信读书的 key 留在本机进程里，不会发到这个页面。命令行入口照常可用：reading-coach</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ('请求失败 ' + r.status));
+  return data;
+};
+const params = new URLSearchParams(location.search);
+const fromPush = params.get('push');
+let today = null, live = null, waiting = null, seen = -1, done = false;
+
+async function loadToday() {
+  today = await api('/api/today');
+  const f = today.focus;
+  $('#today-h').textContent = f ? f.concept : '今天没有到期的概念';
+  $('#today-meta').textContent = f
+    ? `《${f.book}》 · ${f.overdue_days > 0 ? '逾期 ' + f.overdue_days + ' 天' : '今天到期'} · ` +
+      (f.pushes ? `已推送 ${f.pushes} 次` + (f.ignored ? `，连续 ${f.ignored} 次未作答` : '') : '还没推送过')
+    : '想练的话，从书架挑一本。';
+  $('#today-why').textContent = f ? ('今天的推送决定：' + today.why) : '';
+  const start = $('#start');
+  start.disabled = !f || !today.key_ready;
+  start.textContent = today.live ? '回到进行中的那局' : '开始一题 · 约 2 分钟';
+  if (today.live) start.disabled = false;
+  $('#later').hidden = !f || today.why.startsWith('你说了今天先不');
+  const note = $('#today-note');
+  note.hidden = true;
+  if (!today.key_ready) { note.hidden = false; note.textContent = '还没有模型 key：在 reading-coach/.env 写 DEEPSEEK_API_KEY 后重启工作台。账本和台账照常可看。'; }
+  else if (fromPush) { note.hidden = false; note.textContent = `你是从 ${fromPush} 的推送点进来的。`; }
+  fillLiveBanner($('#live-banner'));
+  fillLiveBanner($('#coach-banner'));
+  if (today.live && !live) attach(today.live);
+}
+
+function fillLiveBanner(host) {
+  host.hidden = !today.live;
+  host.innerHTML = '';
+  if (!today.live) return;
+  const i = today.live_info || {};
+  const state = i.waiting === 'answer' ? '正在等你回答' : (i.book ? '教练还在想' : '正在开场');
+  host.append(el('b', '', '有一局正在进行'), document.createTextNode(
+    `：${i.book ? '《' + i.book + '》' : '陪练'}${state}。其他书暂时开不了新局。`));
+  const back = el('button', 'ghost', '回到这一局');
+  back.onclick = () => { attach(today.live); $('#coach').scrollIntoView({behavior: 'smooth'}); };
+  const give = el('button', 'ghost', '放弃这一局');
+  give.onclick = async () => {
+    give.disabled = true; give.textContent = '正在放弃…';
+    try { await api(`/api/session/${today.live}/abort`, {}); live = null; done = true; await refresh(); }
+    catch (e) {
+      give.disabled = false; give.textContent = '放弃这一局';
+      const n = $('#today-note'); n.hidden = false; n.textContent = e.message;
+    }
+  };
+  host.append(back, give);
+}
+
+$('#start').onclick = () => {
+  if (today.live) return attach(today.live);
+  start({book_id: today.focus.book_id, focus: today.focus.concept});
+};
+
+$('#later').onclick = async () => {
+  try {
+    const r = await api('/api/feedback', {target: 'today:' + today.day, value: 'not_today', concept_id: today.focus.concept_id});
+    const note = $('#today-note');
+    note.hidden = false; note.innerHTML = '';
+    note.append('已记下：今天不再推送。');
+    const undo = el('button', 'ghost', '撤销');
+    undo.onclick = async () => { await api('/api/feedback/undo', {id: r.id}); await refresh(); };
+    note.append(' ', undo);
+    $('#later').hidden = true;
+    loadLog();
+  } catch (e) { alert(e.message); }
+};
+
+async function start(body) {
+  try {
+    await api('/api/session', body);
+    await refresh();          // loadToday sees the new live session, shows the banner and attaches
+  } catch (e) {
+    const n = $('#today-note'); n.hidden = false; n.textContent = e.message;
+  }
+}
+
+function attach(id) {
+  if (live === id) { $('#coach').scrollIntoView({behavior: 'smooth'}); return; }
+  live = id; seen = -1; done = false;
+  $('#feed').innerHTML = ''; $('#idle').hidden = true; $('#composer').hidden = false;
+  $('#start').disabled = true;
+  setStatus('教练在看你的账本和书…');
+  location.hash = 'coach';
+  listen();
+}
+
+function listen() {
+  const es = new EventSource(`/api/session/${live}/events?since=${seen + 1}`);
+  es.onmessage = m => { const ev = JSON.parse(m.data); if (ev.seq <= seen) return; seen = ev.seq; render(ev); };
+  es.addEventListener('done', () => { es.close(); finish(); });
+  es.onerror = () => { es.close(); if (!done) setTimeout(listen, 1500); };
+}
+
+function setStatus(t) { $('#status').textContent = t; }
+
+function want(kind) {
+  waiting = kind;
+  const answer = $('#answer'), choice = $('#choice');
+  const on = kind === 'answer';
+  answer.disabled = !on; $('#send').disabled = !on;
+  document.querySelectorAll('#words button').forEach(b => b.disabled = !on);
+  choice.hidden = !(kind === 'retry' || kind === 'confirm'); choice.innerHTML = '';
+  if (kind === 'retry') {
+    choice.append(btn('pill', '重试判题', 'r'), btn('ghost', '跳过这题（不计分）', 's'));
+    setStatus('判题失败了：你的回答还在，账本没动。');
+  } else if (kind === 'confirm') {
+    choice.append(btn('pill', '确认重新导入', 'y'), btn('ghost', '保留原来的版本', 'n'));
+    setStatus('需要你确认一下。');
+  } else if (on) { setStatus('轮到你了'); answer.focus(); }
+  else setStatus('教练在想…');
+}
+
+function btn(cls, label, word) { const b = el('button', cls, label); b.onclick = () => reply(word); return b; }
+
+async function reply(text) {
+  text = (text || '').trim();
+  if (!text || !live) return;
+  const was = waiting;
+  want(null);
+  try { await api(`/api/session/${live}/reply`, {text}); if (was === 'answer') $('#answer').value = ''; }
+  catch (e) { want(was); setStatus(e.message); }
+}
+
+$('#send').onclick = () => reply($('#answer').value);
+$('#answer').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) reply($('#answer').value); });
+document.querySelectorAll('#words button').forEach(b => b.onclick = () => reply(b.dataset.word));
+
+function render(ev) {
+  const feed = $('#feed');
+  const add = n => { feed.append(n); n.scrollIntoView({block: 'nearest', behavior: 'smooth'}); };
+  switch (ev.kind) {
+    case 'book': add(el('p', 'mode', `《${ev.title}》 · 学习中 ${ev.summary['学习中']} · 卡壳 ${ev.summary['卡壳']} · 掌握 ${ev.summary['掌握']} · 到期 ${ev.summary['到期']}`)); break;
+    case 'narrate': add(el('p', 'narr', ev.text)); break;
+    case 'mode': add(el('p', 'mode', '档位 · ' + ev.text)); break;
+    case 'plan': { const ul = el('ul', 'plan'); ev.items.forEach(i => ul.append(el('li', '', i))); const w = el('div'); w.append(el('p', 'sub', '这局的计划'), ul); add(w); break; }
+    case 'question': { const q = el('div', 'q'); q.append(el('p', 'where', `${ev.tier} · ${ev.where}`), el('p', 'text', ev.question)); add(q); break; }
+    case 'ask': want(ev.want); break;
+    case 'you': add(el('p', 'you', ev.text)); break;
+    case 'verdict': { const v = el('div', 'verdict'); v.append(el('span', 'lv lv-' + ev.level, ev.text)); if (ev.ledger) { v.append(el('br')); v.append(el('span', 'led', '账本：' + ev.ledger)); } add(v); break; }
+    case 'note': case 'undo': add(el('p', 'narr', ev.text)); break;
+    case 'confirm': add(el('p', 'you', ev.text)); break;
+    case 'error': add(el('p', 'err', ev.text)); break;
+    case 'report': { const r = el('div', 'report'); ev.lines.forEach(l => r.append(el('p', '', l))); add(r); break; }
+    default: add(el('p', 'narr', ev.text || ''));
+  }
+  if (ev.kind !== 'ask' && waiting === null && !done) setStatus('教练在想…');
+}
+
+function finish() {
+  done = true; want(null);
+  document.querySelectorAll('#words button, #send').forEach(b => b.disabled = true);
+  $('#answer').disabled = true;
+  setStatus('这局结束了。上面的报告列出了已经发生的事。');
+  live = null;
+  refresh();
+}
+
+async function loadBooks() {
+  const books = await api('/api/books');
+  const box = $('#books'); box.innerHTML = '';
+  if (!books.length) { box.append(el('p', 'empty', '书架还是空的。在下面输入书名，或用命令行导入一本 epub / pdf。')); return; }
+  books.forEach(b => {
+    const s = b.summary, card = el('article', 'book');
+    const heading = el('h3', '', b.title);
+    heading.title = '点开看概念';
+    card.append(heading);
+    card.append(el('p', 'counts', `学习中 ${s['学习中']} · 卡壳 ${s['卡壳']} · 掌握 ${s['掌握']} · 到期 ${s['到期']}` + (b.shelf ? ' · 来自微信读书划线' : '')));
+    const row = el('div', 'row'), go = el('button', 'pill', '开始陪练'), more = el('button', 'ghost', '看概念');
+    go.disabled = !(today && today.key_ready) || !!live;
+    if (go.disabled && live) go.title = '有一局在进行，先回到或放弃那一局';
+    go.onclick = () => start({book_id: b.id});
+    const list = el('ol', 'clist'); list.hidden = true;
+    more.onclick = async () => {
+      if (!list.hidden) { list.hidden = true; more.textContent = '看概念'; return; }
+      const cs = await api(`/api/books/${b.id}/concepts`);
+      list.innerHTML = '';
+      if (!cs.length) list.append(el('li', 'empty', '还没练过'));
+      cs.forEach(c => {
+        const li = el('li'), left = el('span', '', c.name), right = el('small');
+        right.textContent = `${c.status} · ` + (c.due ? (c.overdue ? '已到期 ' : '下次 ') + c.due : '未排期') + (c.last ? ` · 上次${c.last}` : '');
+        if (c.overdue) right.classList.add('due');
+        li.append(left, right); list.append(li);
+      });
+      list.hidden = false; more.textContent = '收起';
+    };
+    heading.onclick = () => more.click();
+    row.append(go, more); card.append(row, list); box.append(card);
+  });
+}
+
+$('#by-title').onclick = () => { const t = $('#title').value.trim(); if (t) start({title: t}); };
+
+const RT_STATUS = {ignored: '不提醒', deferred: '延后', ready_to_execute: '待执行', ready_to_send: '可提醒',
+  needs_decision: '待你确认', done: '已准备', failed: '失败'};
+const SHOW = 6;
+let showAll = false;
+
+async function loadLog() {
+  const data = await api('/api/pushes');
+  if (today) $('#decision').textContent = '今天的推送决定：' + today.why;
+  const ol = $('#pushes'); ol.innerHTML = '';
+  if (!data.pushes.length) ol.append(el('li', 'empty', '还没有推送过'));
+  if (fromPush && data.pushes.findIndex(p => p.day === fromPush) >= SHOW) showAll = true;
+  const rows = showAll ? data.pushes : data.pushes.slice(0, SHOW);
+  rows.forEach(p => {
+    const li = el('li'), what = el('div', 'what');
+    if (fromPush && p.day === fromPush) li.classList.add('hl');
+    what.append(el('span', '', `「${p.concept}」`), el('small', '', ` 《${p.book}》 · ${p.answered ? '推送后作答了' : '未作答'}`));
+    const fb = el('div', 'fb');
+    if (p.feedback.length) p.feedback.forEach(f => {
+      fb.append(el('span', 'tag', '已标记：' + f.label));
+      const u = el('button', 'ghost', '撤销'); u.onclick = async () => { await api('/api/feedback/undo', {id: f.id}); refresh(); };
+      fb.append(u);
+    });
+    else [['useful', '有用'], ['useless', '没用'], ['mute', '别再提这个']].forEach(([v, label]) => {
+      const b = el('button', 'ghost', label);
+      b.onclick = async () => { await api('/api/feedback', {target: 'push:' + p.day, value: v, concept_id: p.concept_id}); refresh(); };
+      fb.append(b);
+    });
+    what.append(fb);
+    li.append(el('time', '', `${p.day.slice(5)} ${p.time}`), what); ol.append(li);
+  });
+  if (data.pushes.length > SHOW) {
+    const more = el('button', 'ghost', showAll ? '收起' : `显示全部 ${data.pushes.length} 条`);
+    more.onclick = () => { showAll = !showAll; loadLog(); };
+    const li = el('li'); li.append(el('span'), more); ol.append(li);
+  }
+  const rt = $('#runtime'); rt.innerHTML = '';
+  if (!data.runtime.items.length) rt.append(el('li', 'empty', data.runtime.note));
+  data.runtime.items.forEach(d => {
+    const li = el('li'), what = el('div', 'what');
+    what.append(el('span', '', d.summary || d.reason), el('small', '', ` ${RT_STATUS[d.status] || d.status}${d.notification ? ' · 会提醒（影子阶段不发送）' : ''}`));
+    li.append(el('time', '', d.at.slice(5)), what); rt.append(li);
+  });
+}
+
+async function refresh() {
+  try { await loadToday(); await Promise.all([loadBooks(), loadLog()]); }
+  catch (e) { $('#today-h').textContent = '工作台没连上'; $('#today-meta').textContent = e.message + '。确认 reading-coach-web 还在运行。'; }
+}
+refresh();
+</script>
+</body>
+</html>
