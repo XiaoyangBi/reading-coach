@@ -160,22 +160,22 @@ def plant(path: Path, name: str) -> bool:
 
 def check() -> list[str]:
     errors = []
+    l1 = ROOT / "CLAUDE.md"
+    if not l1.is_file() or PROTOCOL not in l1.read_text(encoding="utf-8"):
+        errors.append("L1 缺失或缺少 [PROTOCOL]：CLAUDE.md")
     for path in sorted(PACKAGE.glob("*.py")):
         if not has_contract(path.read_text(encoding="utf-8")):
             errors.append(f"L3 缺失：{path.relative_to(ROOT)}")
-    for directory in ("reading_coach", "scripts", "deploy"):
+    for directory in ("reading_coach", "scripts", "deploy", ".github"):
         folder = ROOT / directory
         if not folder.is_dir():
             continue
         l2 = folder / "CLAUDE.md"
-        names = [p.name for p in folder.glob("*.py")]
-        if not names:
-            continue
         if not l2.is_file():
-            errors.append(f"L2 缺失：{l2.relative_to(ROOT)}")
+            errors.append(f"L2 缺失：{directory}/CLAUDE.md")
             continue
         body = l2.read_text(encoding="utf-8")
-        for name in names:
+        for name in [p.name for p in folder.glob("*.py")]:
             if name not in body:
                 errors.append(f"L2 未列成员：{directory}/{name}")
         if PROTOCOL not in body:

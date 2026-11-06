@@ -17,7 +17,7 @@ Python 3.9+ + 标准库 http.server + SQLite + OpenAI 兼容 SDK + python-dotenv
 reading_coach/ - 产品包。配置层、领域层、编排层、三个入口。(20 个 .py + static/index.html)
 deploy/ - 服务定义模板与生成器。生成物落在 deploy/generated/ 且不入库。(5 模板 + 1 脚本)
 scripts/ - 离线探针与 GEB 契约守护。(2 脚本)
-.github/workflows/ - CI：四版本测试矩阵、wheel 构建、卫生检查。(1 workflow)
+.github/ - CI 与平台配置。四版本测试矩阵、wheel 构建、卫生检查。3.9 钉住 ubuntu-22.04。(1 workflow + L2 地图)
 samples/ - 自带小样书。离线验收用它，不需要网络。(1 epub)
 </directory>
 
