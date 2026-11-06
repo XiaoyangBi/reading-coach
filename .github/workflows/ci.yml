@@ -8,11 +8,21 @@ on:
 
 jobs:
   offline-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # 执行环境是兼容性契约的一部分。ubuntu-latest 会漂移，且新镜像不再
+        # 提供 EOL 版本的预编译包，所以为每个 Python 版本钉住确定的镜像。
+        include:
+          - python-version: "3.9"
+            runner: ubuntu-22.04
+          - python-version: "3.10"
+            runner: ubuntu-latest
+          - python-version: "3.11"
+            runner: ubuntu-latest
+          - python-version: "3.12"
+            runner: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
