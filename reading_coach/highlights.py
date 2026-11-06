@@ -15,16 +15,17 @@ knows what the coach could and could not see (UX gate item 3).
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 标准库 urllib；可选 WEREAD_API_KEY；调用方注入 call 以便离线测试。
+# - [INPUT]: 依赖 标准库 urllib 与 credentials.weread_key；调用方注入 call 以便离线测试。
 # - [OUTPUT]: 对外提供 weread_call、from_weread、from_local、get_highlights。
 # - [POS]: 划线来源适配层。先试微信读书网关，再退到数据目录里的本地 txt；任何失败都返回来源标记而不中断陪练；shelf 复用同一个 weread_call。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
 import json
-import os
 import urllib.request
 from pathlib import Path
+
+from . import credentials
 
 GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
 SKILL_VERSION = "1.0.4"     # the weread skill's version; the gateway requires it on every call
@@ -44,7 +45,7 @@ def weread_call(api_name: str, key: str, **params) -> dict:
 
 
 def from_weread(title: str, call=weread_call) -> list[dict]:
-    key = os.environ.get("WEREAD_API_KEY")
+    key = credentials.weread_key()
     if not key:
         raise RuntimeError("没有设置 WEREAD_API_KEY")
     found = call("/store/search", key, keyword=title, scope=10)

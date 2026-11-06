@@ -8,14 +8,15 @@ Three things are recorded, because they are what v3's eval will grade:
   verdict every judge result
 
 emit() never raises: a logging fault must not crash a coaching session.
-Secrets are scrubbed before a row is written: the values of the model and
-weread keys in SECRET_ENV, and anything shaped like an API key, become "<redacted>".
+BYOK means the key's shape is chosen by the user, so scrub() reads every
+environment variable whose name looks like a credential, not a fixed list of
+vendor variable names, and replaces those values before a row is written.
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 标准库 sqlite3 / re / json / os；无包内依赖。
+# - [INPUT]: 依赖标准库 sqlite3 / re / json / os / time；无包内依赖。
 # - [OUTPUT]: 对外提供 Trace、scrub、SECRET_ENV、SECRET_RE。
-# - [POS]: 事件日志与脱敏。写入 SQLite 的 trace 表；按环境变量值与密钥形状脱敏，web 推流前对文本再 scrub 一次。
+# - [POS]: 事件日志与脱敏。写 trace 表；按进程里全部凭证环境变量的实际值脱敏，覆盖任意形状的 BYOK 密钥，web 推流前再脱敏一次。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
@@ -24,18 +25,24 @@ import os
 import re
 import time
 
+# 历史清单，保留供外部引用。scrub 不再依赖它，因为 BYOK 下变量名由使用者决定。
 SECRET_ENV = ("ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "WEREAD_API_KEY")
 SECRET_RE = re.compile(r"(sk-[A-Za-z0-9_\-]{8,}|wrk-[A-Za-z0-9_\-]{6,})")
+SECRET_NAME_TAGS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS trace (
   id INTEGER PRIMARY KEY, session TEXT, ts REAL, kind TEXT, payload TEXT)"""
 
 
+def _secret_values() -> list[str]:
+    """收集进程里所有看起来像凭证的环境变量值。只取值，不取名字。"""
+    return [v for k, v in os.environ.items()
+            if len(v) >= 8 and any(tag in k.upper() for tag in SECRET_NAME_TAGS)]
+
+
 def scrub(text: str) -> str:
-    for name in SECRET_ENV:
-        value = os.environ.get(name)
-        if value and len(value) >= 6:
-            text = text.replace(value, "<redacted>")
+    for value in _secret_values():
+        text = text.replace(value, "<redacted>")
     return SECRET_RE.sub("<redacted>", text)
 
 

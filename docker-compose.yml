@@ -1,7 +1,7 @@
 services:
   coach:
     build: .
-    image: reading-coach:3.1.0
+    image: reading-coach:3.2.0
     restart: unless-stopped
     env_file: .env
     environment:

@@ -2,7 +2,7 @@
 
 本地优先的阅读陪练 Agent。书你自己选，理解你自己完成。Agent 只做三件事：提问、记录、到点提醒。
 
-它不是一个聊天机器人，也不是云端 SaaS。你的书、划线、回答、笔记和模型密钥都留在自己的机器上。
+它不是一个聊天机器人，也不是云端 SaaS。你的书、划线、回答、笔记和模型密钥都留在自己的机器上。模型能力采用 BYOK：你自己带密钥，项目不提供、不代管、不转发模型服务。
 
 ## 它做什么
 
@@ -39,6 +39,32 @@ reading-coach-web                       # 打开 http://127.0.0.1:8765/
 | `reading-coach-scheduler` | 跑一次每日推送后退出，由系统定时器调用 |
 
 也可用 `python -m reading_coach.cli` / `python -m reading_coach.web` / `python -m reading_coach.scheduler`。
+
+## BYOK：自己带模型密钥
+
+本项目不提供模型服务，不代管密钥，不代理请求，也不计费。你用谁的账号、花谁的钱、遵守谁的服务条款，都由你决定。
+
+最小配置（任意 OpenAI 兼容端点）：
+
+```bash
+READING_COACH_API_KEY=你的密钥
+READING_COACH_BASE_URL=https://your-endpoint/v1
+READING_COACH_MODEL=你的模型名
+```
+
+三条缺一不可。用通用密钥却不写端点与模型名会被拒绝启动——这道门禁防止把你的密钥误发到默认厂商。
+也支持 Anthropic Messages API（`ANTHROPIC_API_KEY`），以及 v3.1 的兼容别名 `DEEPSEEK_*`。
+
+契约边界：
+
+- `credentials.py` 是全项目唯一读取自带凭证的位置，模型与数据源都在内。其余模块只接收 `Provider` 对象或数据源 key。
+- `Provider` 不可变，`api_key` 不参与 `repr`，异常堆栈打不出密钥。
+- `tracelog.scrub()` 按进程里全部凭证环境变量的实际值脱敏，覆盖任意厂商、任意形状的密钥。
+- 页面只拿到 `kind` / `model` / `label` / `base_url` 这类非敏感描述，页脚显示当前用哪家。
+- 不配密钥时软件照常可用：书架、账本、推送台账、离线检查都能跑，只是不能开陪练。
+
+新增端点类型只改 `credentials.py` 与 `cli.make_models`，`loop`、`session`、门禁与前端都不动。
+`WEREAD_API_KEY` 是数据源凭证，同样遵循 BYOK，缺失时降级到本地划线文件。
 
 ## 数据与隐私
 
@@ -93,8 +119,12 @@ docker compose up -d
 
 | 变量 | 默认 | 用途 |
 |---|---|---|
-| `DEEPSEEK_API_KEY` / `ANTHROPIC_API_KEY` | 空 | 二选一，前者优先 |
-| `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` | `api.deepseek.com` / `deepseek-chat` | 任何 OpenAI 兼容端点 |
+| `READING_COACH_API_KEY` | 空 | BYOK 通用密钥，任意厂商 |
+| `READING_COACH_BASE_URL` / `READING_COACH_MODEL` | 空 | 用通用密钥时必填：端点与模型名 |
+| `READING_COACH_PROVIDER` | `auto` | `auto` / `openai` / `anthropic` |
+| `ANTHROPIC_API_KEY` | 空 | Anthropic Messages API 凭证 |
+| `DEEPSEEK_*` | 兼容别名 | v3.1 以前的写法仍有效，无需迁移 |
+| `READING_COACH_THINKING` | 按端点判断 | `1`/`0` 强制开关厂商私有思考参数 |
 | `WEREAD_API_KEY` | 空 | 微信读书划线，缺失则降级本地 txt |
 | `READING_COACH_HOME` | 项目根 `data/` | 数据根目录 |
 | `READING_COACH_PORT` | `8765` | 工作台端口 |
@@ -112,8 +142,8 @@ docker compose up -d
 
 | 想加什么 | 改哪里 |
 |---|---|
-| 新的 OpenAI 兼容模型 | 只改 `DEEPSEEK_BASE_URL` 与 `DEEPSEEK_MODEL`，代码不动 |
-| 新的 provider | 在 `cli.make_models` 加分支，返回 `(coach_model, judge_model)` |
+| 换任意 OpenAI 兼容模型 | 只改 `READING_COACH_BASE_URL` 与 `READING_COACH_MODEL`，代码不动 |
+| 新的 provider 类型 | 在 `credentials.resolve` 与 `cli.make_models` 各加一个分支 |
 | 新的工具 | 在 `coach.build_registry` 注册，schema 与代码边都写在那里 |
 | 新的配置项 | 只改 `reading_coach/config.py` |
 | 新的通知渠道 | 给 `scheduler.run` 换一个 `notify` 参数 |

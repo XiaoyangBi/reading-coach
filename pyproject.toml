@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reading-coach"
-version = "3.1.0"
+version = "3.2.0"
 description = "本地优先的阅读陪练 Agent：只提问、只记录、到点提醒，书由你选，理解由你完成"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -1,21 +1,21 @@
-"""Model adapters: any OpenAI-compatible provider (DeepSeek, Qwen, ...) wrapped
-to speak the Anthropic Messages shape the loop expects.
+"""Model adapters: any OpenAI-compatible provider supplied by the user (BYOK),
+wrapped to speak the Anthropic Messages shape the loop expects.
 
-The loop, gates, and tests never change: `make_deepseek` returns callables
-messages -> Message with the same content-block / stop_reason contract as the
-Anthropic SDK response. The translation is two pure functions, so test.py can
-verify the mapping offline without any network or key.
+The loop, gates, and tests never change: `make_openai_compatible` returns
+callables messages -> Message with the same content-block / stop_reason contract
+as the Anthropic SDK response. The translation is two pure functions, so test.py
+can verify the mapping offline without any network or key. The live factory
+receives a credentials.Provider; it never reads environment variables.
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 标准库；惰性依赖 openai SDK 与 recovery.with_retry。
-# - [OUTPUT]: 对外提供 to_openai_messages、to_openai_tools、from_openai_response、make_deepseek。
-# - [POS]: OpenAI 兼容适配层。翻译函数是纯函数，离线可测；cli 按 key 决定是否启用它，loop 与门禁一行不改。
+# - [INPUT]: 依赖标准库；接收调用方传入的 BYOK 凭证对象；惰性依赖 openai SDK 与 recovery.with_retry。
+# - [OUTPUT]: 对外提供 to_openai_messages、to_openai_tools、from_openai_response、make_openai_compatible。
+# - [POS]: OpenAI 兼容适配层。翻译函数是纯函数，离线可测；厂商私有参数由凭证对象的能力位决定，不写死任何厂商名。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
 import json
-import os
 from types import SimpleNamespace as NS
 
 
@@ -82,30 +82,29 @@ def from_openai_response(resp):
 
 # ---------- live factory ----------
 
-def make_deepseek(coach_system, judge_system, verdict_tool, registry_schemas):
-    """Build live coach/judge callables on DeepSeek's OpenAI-compatible API."""
+def make_openai_compatible(provider, coach_system, judge_system, verdict_tool, registry_schemas):
+    """按 BYOK 凭证构建 live 教练/裁判。凭证来自 credentials.Provider，不读环境变量。"""
     from openai import OpenAI
     from .recovery import with_retry
-    client = OpenAI(api_key=os.environ["DEEPSEEK_API_KEY"],
-                    base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
-    model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+    client = OpenAI(api_key=provider.api_key, base_url=provider.base_url)
+    model = provider.model
 
     def call(system, messages, schemas, force_tool=None, max_tokens=2048):
         kwargs = {}
         if schemas:
             kwargs["tools"] = to_openai_tools(schemas)
         if force_tool:
-            # the judge must answer through its verdict tool. Thinking-mode models
-            # (deepseek-flash etc.) reject a forced tool_choice, so thinking is
-            # turned off for this one call; judging is extraction, not reasoning.
+            # 裁判必须经 verdict 工具作答。部分思考型端点拒绝被强制的 tool_choice，
+            # 需要额外关闭思考；该私有参数只在凭证声明支持时下发，BYOK 端点默认不发。
             kwargs["tool_choice"] = {"type": "function", "function": {"name": force_tool}}
-            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+            if provider.supports_thinking_toggle:
+                kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
         return with_retry(lambda: from_openai_response(client.chat.completions.create(
             model=model, messages=[{"role": "system", "content": system}] + to_openai_messages(messages),
             max_tokens=max_tokens, **kwargs)))
 
     def coach_model(messages):
-        return call(coach_system, messages, registry_schemas, max_tokens=4096)  # thinking eats tokens
+        return call(coach_system, messages, registry_schemas, max_tokens=4096)
 
     def judge_model(messages):
         return call(judge_system, messages, [verdict_tool], force_tool="submit_verdict", max_tokens=1024)
@@ -113,4 +112,4 @@ def make_deepseek(coach_system, judge_system, verdict_tool, registry_schemas):
     return coach_model, judge_model
 
 
-__all__ = ["to_openai_messages", "to_openai_tools", "from_openai_response", "make_deepseek"]
+__all__ = ["to_openai_messages", "to_openai_tools", "from_openai_response", "make_openai_compatible"]

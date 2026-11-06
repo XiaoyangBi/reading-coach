@@ -1,31 +1,30 @@
-"""The one entry point. Everything the user does starts here.
+"""The terminal entry point. Everything the user does starts here.
 
-    reading-coach 金字塔原理    shelf mode: coach on your weread highlights of that book
+    reading-coach 书名          shelf mode: coach on your weread highlights of that book
     reading-coach 书.epub      file mode: import (or reuse) a local epub / txt / md / pdf
     reading-coach              pick a book, due reviews first
 
-Inside a session there is nothing to learn but four words, typed at any answer
-prompt: 跳过 / 深挖 / 撤销 / 结束. This is the only file that imports the
-anthropic SDK and dotenv (the reference repo keeps them in demo.py); the API
-key is read from .env by the SDK and never printed, logged, or traced.
+Model access is BYOK: the user supplies the key, this project never proxies it.
+credentials.resolve() is the only place that turns environment variables into a
+credential. This file receives a Provider and passes it to the SDK; it never
+reads an API key itself.
 
 Data lives under $READING_COACH_HOME (default: ./data): coach.db (books,
 ledger, trace), notes/, highlights/.
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 config 与 book/coach/judge/ledger/notes/recovery/session/tracelog；惰性依赖 models、shelf、anthropic、python-dotenv。
+# - [INPUT]: 依赖 config、credentials 与 book/coach/judge/ledger/notes/recovery/session/tracelog；惰性依赖 models、shelf、anthropic、python-dotenv。
 # - [OUTPUT]: 对外提供 main、entry、load_env、has_model_key、make_models、confirm、pick_book、SHELF_NOTE。
-# - [POS]: 终端入口，也是唯一按 key 选择 provider 的位置。web 复用它的 make_models 与 SHELF_NOTE；它只装配 Session 并驱动一轮，不实现教练逻辑。
+# - [POS]: 终端入口。把 BYOK 凭证对象分发到对应 SDK 适配层，再装配 Session 驱动一轮；web 复用它的 make_models，它不实现教练逻辑。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
-import os
 import sys
 import time
 from pathlib import Path
 
-from . import config
+from . import config, credentials
 from .book import Library
 from .coach import SYSTEM as COACH_SYSTEM
 from .coach import opening
@@ -46,21 +45,24 @@ def load_env() -> None:
 
 
 def has_model_key() -> bool:
-    return bool(os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
+    """保留名字供 web 注入。真值由 BYOK 凭证层给出。"""
+    return credentials.available()
 
 
 def make_models(registry_schemas):
-    """Build the live coach and judge callables. Provider is picked by which key
-    exists: DEEPSEEK_API_KEY (or any OpenAI-compatible endpoint via
-    DEEPSEEK_BASE_URL) wins, else ANTHROPIC_API_KEY. SDKs import lazily so
-    offline tests never need them."""
-    if os.environ.get("DEEPSEEK_API_KEY"):
-        from .models import make_deepseek
-        return make_deepseek(COACH_SYSTEM, JUDGE_SYSTEM, VERDICT_TOOL, registry_schemas)
+    """按 BYOK 凭证构建 live 教练与裁判。此函数不读环境变量，SDK 惰性导入。"""
+    provider = credentials.resolve()
+    if provider is None:
+        raise credentials.CredentialsError("还没有配置模型密钥")
+
+    if provider.kind == "openai":
+        from .models import make_openai_compatible
+        return make_openai_compatible(provider, COACH_SYSTEM, JUDGE_SYSTEM,
+                                     VERDICT_TOOL, registry_schemas)
 
     from anthropic import Anthropic
-    client = Anthropic(base_url=os.environ.get("ANTHROPIC_BASE_URL") or None)
-    model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+    client = Anthropic(api_key=provider.api_key, base_url=provider.base_url)
+    model = provider.model
 
     def coach_model(messages):
         return with_retry(lambda: client.messages.create(
@@ -100,8 +102,8 @@ def main(argv):
     load_env()
     config.setup_logging()
     if not has_model_key():
-        print("需要模型 key 才能开始：在 reading-coach/.env 里写 DEEPSEEK_API_KEY=... "
-              "或 ANTHROPIC_API_KEY=...（参考 .env.example）")
+        print(credentials.describe()["error"])
+        print("账本、书架与离线检查照常可用。BYOK 凭证写法见 .env.example。")
         return 1
 
     home = config.data_home()

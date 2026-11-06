@@ -6,12 +6,13 @@ list of typed lines.
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 包内全部领域模块（含惰性导入 models / shelf / scheduler / web）；标准库 tempfile / sqlite3 / http.client；无外网、无真实 key。
-# - [OUTPUT]: 对外提供 main、entry 与 17 组离线检查。
+# - [INPUT]: 依赖 包内全部领域模块与 credentials（含惰性导入 models / shelf / scheduler / web）；标准库 contextlib / tempfile / sqlite3 / http.client；无外网、无真实 key。
+# - [OUTPUT]: 对外提供 main、entry 与全部离线检查。
 # - [POS]: 唯一离线验收入口。用脚本化假模型与临时库跑端到端会话；CI 与 console_scripts 都调用它。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
+import contextlib
 import json
 import os
 import sqlite3
@@ -32,6 +33,17 @@ from .tools import Registry, Tool, run_tool
 from .tracelog import Trace, scrub
 
 TMP = Path(tempfile.mkdtemp(prefix="coach-test-"))
+
+
+@contextlib.contextmanager
+def env_isolated():
+    """隔离环境变量。测试里的 BYOK 配置不得泄漏到后续用例。"""
+    saved = dict(os.environ)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
 
 
 # ---- stand-in Anthropic objects (same trick as the reference repo's test.py) ----
@@ -216,15 +228,76 @@ def test_context():
 
 
 def test_trace():
-    os.environ["ANTHROPIC_API_KEY"] = "zz-live-key-123456"
-    assert "zz-live-key" not in scrub("key=zz-live-key-123456") and "<redacted>" in scrub("sk-abcdefghijk")
-    db = sqlite3.connect(":memory:")
-    t = Trace(db, "s1")
-    t.emit("tool", name="x", input={"why": "zz-live-key-123456"})
-    assert t.rows("tool")[0]["input"]["why"] == "<redacted>"
-    db.close()
-    t.emit("tool", name="after-close")                                  # never raises
+    with env_isolated():
+        os.environ["ANTHROPIC_API_KEY"] = "zz-live-key-123456"
+        assert "zz-live-key" not in scrub("key=zz-live-key-123456") and "<redacted>" in scrub("sk-abcdefghijk")
+        db = sqlite3.connect(":memory:")
+        t = Trace(db, "s1")
+        t.emit("tool", name="x", input={"why": "zz-live-key-123456"})
+        assert t.rows("tool")[0]["input"]["why"] == "<redacted>"
+        db.close()
+        t.emit("tool", name="after-close")                              # never raises
     print("tracelog: ok")
+
+
+def test_byok():
+    """BYOK 契约：唯一读取点、任意端点可用、描述不含密钥、脱敏覆盖任意形状。"""
+    from . import credentials
+    prefixes = ("READING_COACH_", "DEEPSEEK_", "ANTHROPIC_")
+    with env_isolated():
+        for name in [k for k in os.environ if k.startswith(prefixes)]:
+            os.environ.pop(name, None)
+        assert credentials.resolve() is None
+        assert credentials.available() is False
+        assert credentials.describe()["configured"] is False
+        assert "api_key" not in json.dumps(credentials.describe()).lower()
+
+        secret = "qw-9f3c7b21e55a4d8e0"
+        os.environ["READING_COACH_API_KEY"] = secret
+        try:                                                  # 通用密钥不能落到默认厂商
+            credentials.resolve()
+            assert False, "缺少端点与模型名时必须拒绝"
+        except credentials.CredentialsError:
+            pass
+        os.environ["READING_COACH_BASE_URL"] = "https://llm.example.internal/v1"
+        os.environ["READING_COACH_MODEL"] = "my-model"
+        p = credentials.resolve()
+        assert p.kind == "openai" and p.model == "my-model" and p.api_key == secret
+        assert secret not in repr(p)                          # 异常堆栈不得带出密钥
+        assert secret not in json.dumps(p.describe())
+        assert p.describe()["byok"] is True
+        assert p.supports_thinking_toggle is False             # 非 DeepSeek 端点不发私有参数
+        assert secret not in scrub(f"leak {secret} here")      # 任意形状的 key 也脱敏
+
+        for key in ("READING_COACH_API_KEY", "READING_COACH_BASE_URL", "READING_COACH_MODEL"):
+            os.environ.pop(key, None)
+        os.environ["DEEPSEEK_API_KEY"] = "sk-legacy-12345678"
+        legacy = credentials.resolve()                        # 兼容别名保持原来的厂商默认值
+        assert legacy.kind == "openai" and legacy.base_url == credentials.DEEPSEEK_DEFAULT_URL
+        assert legacy.model == credentials.DEEPSEEK_DEFAULT_MODEL
+        assert legacy.supports_thinking_toggle is True
+
+        os.environ["ANTHROPIC_API_KEY"] = "ant-xyz-99887766"
+        os.environ["READING_COACH_PROVIDER"] = "anthropic"
+        ant = credentials.resolve()
+        assert ant.kind == "anthropic" and ant.api_key == "ant-xyz-99887766"
+        assert "ant-xyz" not in repr(ant)
+
+        os.environ["READING_COACH_PROVIDER"] = "wat"
+        try:
+            credentials.resolve()
+            assert False, "非法 provider 必须拒绝"
+        except credentials.CredentialsError:
+            pass
+        os.environ["READING_COACH_PROVIDER"] = "openai"
+        os.environ.pop("DEEPSEEK_API_KEY")
+        try:
+            credentials.resolve()
+            assert False, "显式 provider 缺密钥必须拒绝"
+        except credentials.CredentialsError:
+            pass
+        assert credentials.available() is False                # 配置错误不算可用
+    print("byok credentials: ok")
 
 
 def test_highlights():
@@ -692,7 +765,7 @@ def test_web():
 
 def main() -> int:
     """按依赖顺序跑完全部离线检查。断言失败直接冒泡，CI 据此判定红绿。"""
-    for fn in (test_tools, test_loop, test_book, test_ledger, test_context, test_trace, test_highlights,
+    for fn in (test_tools, test_loop, test_book, test_ledger, test_context, test_trace, test_byok, test_highlights,
                test_notes, test_judge, test_session_happy, test_session_control, test_session_failure,
                test_models_adapter, test_shelf, test_scheduler, test_scheduler_backoff, test_web):
         fn()

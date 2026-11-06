@@ -3,6 +3,7 @@
 
 包内模块按依赖方向分层：
     config     运行契约，不依赖任何业务模块
+    credentials  BYOK 凭证契约，不依赖任何业务模块，不导入第三方 SDK
     book/ledger/notes/tracelog/tools/context/loop/recovery/models/judge/coach
                领域与机制层，可独立测试
     session    编排层，把上面各层接成一局陪练
@@ -12,7 +13,7 @@
 """
 from __future__ import annotations
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 
 # - [INPUT]: 不依赖包内模块。
 # - [OUTPUT]: 对外提供 __version__ 与 reading_coach 包标识。

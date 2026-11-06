@@ -4,6 +4,16 @@
 > `src/cli.py` → `reading-coach`，`src/web.py` → `reading-coach-web`，
 > `src/scheduler.py` → `reading-coach-scheduler`，`src/test.py` → `reading-coach-test`。
 
+## v3.2.0（2026-11-06）BYOK 凭证契约
+
+- 新增 `credentials.py`。它是全项目唯一读取模型密钥的位置，产出不可变 `Provider`，`api_key` 不参与 `repr`。
+- 模型能力显式 BYOK：通用密钥 + 端点 + 模型名，支持任意 OpenAI 兼容端点与 Anthropic。旧的 `DEEPSEEK_*` 保留为兼容别名。
+- `cli` / `models` / `web` 改为消费凭证对象，不再直接读环境变量。厂商私有思考参数改由凭证能力位决定。
+- 脱敏改为按全部凭证环境变量的实际值匹配，覆盖任意形状的 BYOK 密钥。
+- 页面页脚显示当前 BYOK 模型，只接收非敏感描述。
+- 新增 BYOK 离线验收；修复 trace 用例遗留的环境变量污染。
+- 版本号升至 3.2.0。
+
 ## v3.1.0（2026-11-06）产品化与开源
 
 - 源码重组为 `reading_coach` 包。四个 `console_scripts` 取代 `python src/xxx.py`。

@@ -152,7 +152,7 @@ input[type=text]:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--brand)}
 </section>
 </main>
 
-<footer class="foot">只在本机运行。模型和微信读书的 key 留在本机进程里，不会发到这个页面。命令行入口照常可用：reading-coach</footer>
+<footer class="foot"><span id="model-label">BYOK</span> · 模型和微信读书的 key 留在本机进程里，不会发到这个页面。命令行入口照常可用：reading-coach</footer>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -169,6 +169,9 @@ let today = null, live = null, waiting = null, seen = -1, done = false;
 
 async function loadToday() {
   today = await api('/api/today');
+  const mi = today.model_info || {};
+  const ml = $('#model-label');
+  if (ml) ml.textContent = mi.configured ? `BYOK · ${mi.label} · ${mi.model}` : 'BYOK · 未配置模型密钥';
   const f = today.focus;
   $('#today-h').textContent = f ? f.concept : '今天没有到期的概念';
   $('#today-meta').textContent = f
@@ -183,7 +186,7 @@ async function loadToday() {
   $('#later').hidden = !f || today.why.startsWith('你说了今天先不');
   const note = $('#today-note');
   note.hidden = true;
-  if (!today.key_ready) { note.hidden = false; note.textContent = '还没有模型 key：在 reading-coach/.env 写 DEEPSEEK_API_KEY 后重启工作台。账本和台账照常可看。'; }
+  if (!today.key_ready) { note.hidden = false; note.textContent = (mi.error || '还没有配置 BYOK 模型密钥') + '：在 .env 里填写后重启工作台。账本和台账照常可看。'; }
   else if (fromPush) { note.hidden = false; note.textContent = `你是从 ${fromPush} 的推送点进来的。`; }
   fillLiveBanner($('#live-banner'));
   fillLiveBanner($('#coach-banner'));

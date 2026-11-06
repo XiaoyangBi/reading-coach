@@ -1,10 +1,11 @@
 # 贡献指南
 
-## 三条不可让渡的原则
+## 四条不可让渡的原则
 
 1. 本地优先。不把书、划线、回答或笔记送到用户机器之外。
 2. 密钥不落盘。不把 API key 写进数据库、日志、页面或测试断言。
 3. 验收离线可跑。`reading-coach-test` 不需要 key，不需要网络。
+4. BYOK 边界不可绕过。模型与数据源凭证只能来自 `credentials.py`。其余模块不得直接读取 `*_API_KEY`。`config.py` 只管运行参数与 `READING_COACH_TOKEN` 这类本地访问口令。
 
 ## 开发流程
 
@@ -40,6 +41,7 @@ python scripts/check_contracts.py
 - 教练与裁判逻辑只住在 `session.py` 及其下游。`web.py` 与 `cli.py` 只做适配。
 - 门禁用代码裁决，不靠提示词自觉。计划先行、题量预算、费曼规则、深挖授权都写在 `coach.build_registry` 的代码边里。
 - 新工具必须带 `narrate`，让用户看得见 Agent 在做什么。
+- 新增模型端点先在 `credentials.resolve()` 声明凭证来源与能力位，再在 `cli.make_models` 分发。`models.py` 不写厂商名。
 - 新写操作必须可撤销，或明确说明为何不可撤销。
 - 单文件超过 800 行就拆分。
 

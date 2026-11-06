@@ -26,6 +26,11 @@ REQUIRED = ("[INPUT]:", "[OUTPUT]:", "[POS]:", "[PROTOCOL]:")
 
 # 每项 = (依赖了什么, 对外提供什么, 它在这个局部结构里是谁、为何存在)
 CONTRACTS = {
+    "credentials.py": (
+        "标准库 os / dataclasses；不依赖包内模块与任何第三方 SDK",
+        "Provider、CredentialsError、resolve、weread_key、available、describe",
+        "BYOK 信任边界。唯一把环境变量翻译成模型与数据源凭证的位置；凭证以不可变对象向下游传递，api_key 不参与 repr",
+    ),
     "book.py": (
         "标准库 zipfile / html.parser / re / sqlite3 / pathlib，可选 pypdf；不依赖包内模块",
         "Book、Library、parse_book、parse_epub、parse_text、parse_pdf、anchor_label",
@@ -33,10 +38,10 @@ CONTRACTS = {
         "重导入会重排锚点，因此先预览差异，再把替换决定交给 cli 传入的 confirm 回调，自己不询问用户",
     ),
     "cli.py": (
-        "config 与 book/coach/judge/ledger/notes/recovery/session/tracelog；惰性依赖 models、shelf、anthropic、python-dotenv",
+        "config、credentials 与 book/coach/judge/ledger/notes/recovery/session/tracelog；惰性依赖 models、shelf、anthropic、python-dotenv",
         "main、entry、load_env、has_model_key、make_models、confirm、pick_book、SHELF_NOTE",
-        "终端入口，也是唯一按 key 选择 provider 的位置。web 复用它的 make_models 与 SHELF_NOTE；"
-        "它只装配 Session 并驱动一轮，不实现教练逻辑",
+        "终端入口。把 BYOK 凭证对象分发到对应 SDK 适配层，再装配 Session 驱动一轮；"
+        "web 复用它的 make_models，它不实现教练逻辑",
     ),
     "coach.py": (
         "book.anchor_label 与 tools.Registry / Tool",
@@ -51,7 +56,7 @@ CONTRACTS = {
         "session 在每轮调用模型前使用它",
     ),
     "highlights.py": (
-        "标准库 urllib；可选 WEREAD_API_KEY；调用方注入 call 以便离线测试",
+        "标准库 urllib 与 credentials.weread_key；调用方注入 call 以便离线测试",
         "weread_call、from_weread、from_local、get_highlights",
         "划线来源适配层。先试微信读书网关，再退到数据目录里的本地 txt；任何失败都返回来源标记而不中断陪练；"
         "shelf 复用同一个 weread_call",
@@ -74,9 +79,9 @@ CONTRACTS = {
         "自己只负责工具调用与消息推进",
     ),
     "models.py": (
-        "标准库；惰性依赖 openai SDK 与 recovery.with_retry",
-        "to_openai_messages、to_openai_tools、from_openai_response、make_deepseek",
-        "OpenAI 兼容适配层。翻译函数是纯函数，离线可测；cli 按 key 决定是否启用它，loop 与门禁一行不改",
+        "标准库；接收调用方传入的 BYOK 凭证对象；惰性依赖 openai SDK 与 recovery.with_retry",
+        "to_openai_messages、to_openai_tools、from_openai_response、make_openai_compatible",
+        "OpenAI 兼容适配层。翻译函数是纯函数，离线可测；厂商私有参数由凭证能力位决定，不写死任何厂商名",
     ),
     "notes.py": (
         "标准库 pathlib / re；无包内依赖",
@@ -101,14 +106,14 @@ CONTRACTS = {
         "控制词优先于教练意图。cli 与 web 共用它，不重写教练逻辑",
     ),
     "shelf.py": (
-        "book.Book 与 highlights.weread_call；可选 WEREAD_API_KEY",
+        "book.Book、highlights.weread_call 与 credentials.weread_key",
         "resolve、build_book",
         "书架模式适配层。按书名解析 bookId，把用户划线折成 Book；cli 与 web 由此进入以划线为原文的陪练",
     ),
     "test.py": (
         "包内全部领域模块（含惰性导入 models / shelf / scheduler / web）；标准库 tempfile / sqlite3 / http.client；无外网、无真实 key",
-        "main、entry 与 17 组离线检查",
-        "唯一离线验收入口。用脚本化假模型与临时库跑端到端会话；CI 与 console_scripts 都调用它",
+        "main、entry 与全部离线检查",
+        "唯一离线验收入口。用脚本化假模型与临时库跑端到端会话，并检查 BYOK 凭证契约；CI 与 console_scripts 都调用它",
     ),
     "tools.py": (
         "标准库 json；无包内依赖",
@@ -118,13 +123,13 @@ CONTRACTS = {
     "tracelog.py": (
         "标准库 sqlite3 / re / json / os；无包内依赖",
         "Trace、scrub、SECRET_ENV、SECRET_RE",
-        "事件日志与脱敏。写入 SQLite 的 trace 表；按环境变量值与密钥形状脱敏，web 推流前对文本再 scrub 一次",
+        "事件日志与脱敏。写 trace 表；按进程里全部凭证环境变量的实际值脱敏，覆盖任意形状的 BYOK 密钥，web 推流前再脱敏一次",
     ),
     "web.py": (
-        "config、scheduler、book/coach/ledger/notes/session/tracelog，函数内复用 cli 的 make_models 与 shelf.build_book；标准库 http.server / threading",
+        "config、credentials、scheduler、book/coach/ledger/notes/session/tracelog，函数内复用 cli 的 make_models 与 shelf.build_book；标准库 http.server / threading",
         "make_server、main、entry、App、Handler、Live、classify、books_view、concepts_view、runtime_view",
         "浏览器工作台入口。把同一个 Session 的 say/ask 映射成 SSE 事件与等待回复；"
-        "Host/Origin 白名单加可选 Basic 令牌构成访问边界，页面永远拿不到 key",
+        "Host/Origin 白名单加可选 Basic 令牌构成访问边界；页面只收到 BYOK 模型的非敏感描述，永远拿不到 key",
     ),
 }
 
@@ -200,7 +205,7 @@ def main() -> int:
         print(line, file=sys.stderr)
     if errors:
         return 1
-    print(f"GEB contracts: ok ({len(CONTRACTS)} seeded modules)")
+    print(f"GEB contracts: ok ({len(CONTRACTS)} contracted modules)")
     return 0
 
 

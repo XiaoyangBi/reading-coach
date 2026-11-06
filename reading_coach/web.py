@@ -26,9 +26,9 @@ Boundaries:
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 config、scheduler、book/coach/ledger/notes/session/tracelog，函数内复用 cli 的 make_models 与 shelf.build_book；标准库 http.server / threading。
+# - [INPUT]: 依赖 config、credentials、scheduler、book/coach/ledger/notes/session/tracelog，函数内复用 cli 的 make_models 与 shelf.build_book；标准库 http.server / threading。
 # - [OUTPUT]: 对外提供 make_server、main、entry、App、Handler、Live、classify、books_view、concepts_view、runtime_view。
-# - [POS]: 浏览器工作台入口。把同一个 Session 的 say/ask 映射成 SSE 事件与等待回复；Host/Origin 白名单加可选 Basic 令牌构成访问边界，页面永远拿不到 key。
+# - [POS]: 浏览器工作台入口。把同一个 Session 的 say/ask 映射成 SSE 事件与等待回复；Host/Origin 白名单加可选 Basic 令牌构成访问边界；页面只收到 BYOK 模型的非敏感描述，永远拿不到 key。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
@@ -48,7 +48,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import __version__, config, scheduler
+from . import __version__, config, credentials, scheduler
 from .book import Library
 from .coach import opening
 from .ledger import Ledger
@@ -274,7 +274,7 @@ class App:
 
     def start(self, body: dict) -> tuple[int, dict]:
         if not self.key_ready():
-            return 400, {"error": "需要模型 key：在 reading-coach/.env 里写 DEEPSEEK_API_KEY=..."}
+            return 400, {"error": credentials.describe().get("error") or "还没有配置 BYOK 模型密钥"}
         self.prune()
         with self.lock:
             if self.active():
@@ -382,6 +382,7 @@ class Handler(BaseHTTPRequestHandler):
                     book = next((e.get("title") for e in live.events if e["kind"] == "book"), None)
                     info = {"id": live.id, "waiting": live.waiting, "book": book}
                 return self._send(200, {**plan, "key_ready": app.key_ready(),
+                                        "model_info": credentials.describe(),
                                         "live": live.id if live else None, "live_info": info})
             if path == "/api/books":
                 return self._send(200, books_view(db))
@@ -484,7 +485,11 @@ def warm_sdk() -> None:
     keeps 开始一题 from looking frozen."""
     import importlib
     import importlib.util
-    name = "openai" if os.environ.get("DEEPSEEK_API_KEY") else "anthropic"
+    try:
+        provider = credentials.resolve()
+    except credentials.CredentialsError:
+        return
+    name = "openai" if provider and provider.kind == "openai" else "anthropic"
     threading.Thread(target=lambda: importlib.util.find_spec(name) and importlib.import_module(name),
                      daemon=True).start()
 
@@ -511,7 +516,7 @@ def main(argv) -> int:
         warm_sdk()
     print(f"工作台：{url}（Ctrl-C 退出）")
     if not has_model_key():
-        print("提醒：还没有模型 key，可以看账本和台账，但开不了陪练")
+        print("提醒：还没有配置 BYOK 模型密钥，可以看账本和台账，但开不了陪练")
     if "--no-open" not in argv:
         webbrowser.open(url)
     try:

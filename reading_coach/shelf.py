@@ -16,14 +16,13 @@ notes, undo) is reused unchanged.
 """
 from __future__ import annotations
 
-# - [INPUT]: 依赖 book.Book 与 highlights.weread_call；可选 WEREAD_API_KEY。
+# - [INPUT]: 依赖 book.Book、highlights.weread_call 与 credentials.weread_key。
 # - [OUTPUT]: 对外提供 resolve、build_book。
 # - [POS]: 书架模式适配层。按书名解析 bookId，把用户划线折成 Book；cli 与 web 由此进入以划线为原文的陪练。
 # - [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 
-import os
-
+from . import credentials
 from .book import Book
 from .highlights import weread_call
 
@@ -35,7 +34,7 @@ def resolve(title: str, call=weread_call) -> tuple[str, str, int]:
     the right one is the edition the USER actually marked up, so candidates are
     ranked by highlight count first, exact title match second.
     """
-    key = os.environ.get("WEREAD_API_KEY")
+    key = credentials.weread_key()
     if not key:
         raise RuntimeError("书架模式需要 WEREAD_API_KEY（写在 .env 里）")
     found = call("/store/search", key, keyword=title, scope=10)
@@ -59,7 +58,9 @@ def build_book(title: str, call=weread_call) -> tuple[Book, dict]:
     Raises an honest RuntimeError when there is nothing to coach on.
     """
     book_id, canonical, _ = resolve(title, call)
-    key = os.environ["WEREAD_API_KEY"]
+    key = credentials.weread_key()
+    if not key:
+        raise RuntimeError("书架模式需要 WEREAD_API_KEY（写在 .env 里）")
 
     toc = call("/book/chapterinfo", key, bookId=book_id).get("chapters", [])
     marks = call("/book/bookmarklist", key, bookId=book_id)
